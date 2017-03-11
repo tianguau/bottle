@@ -3197,6 +3197,39 @@ class FlupFCGIServer(ServerAdapter):
         flup.server.fcgi.WSGIServer(handler, **self.options).run()
 
 
+#### class WSGIRefServer(ServerAdapter):
+####     def run(self, app):  # pragma: no cover
+####         from wsgiref.simple_server import make_server
+####         from wsgiref.simple_server import WSGIRequestHandler, WSGIServer
+####         import socket
+#### 
+####         class FixedHandler(WSGIRequestHandler):
+####             def address_string(self):  # Prevent reverse DNS lookups please.
+####                 return self.client_address[0]
+#### 
+####             def log_request(*args, **kw):
+####                 if not self.quiet:
+####                     return WSGIRequestHandler.log_request(*args, **kw)
+#### 
+####         handler_cls = self.options.get('handler_class', FixedHandler)
+####         server_cls = self.options.get('server_class', WSGIServer)
+#### 
+####         if ':' in self.host:  # Fix wsgiref for IPv6 addresses.
+####             if getattr(server_cls, 'address_family') == socket.AF_INET:
+#### 
+####                 class server_cls(server_cls):
+####                     address_family = socket.AF_INET6
+#### 
+####         self.srv = make_server(self.host, self.port, app, server_cls,
+####                                handler_cls)
+####         self.port = self.srv.server_port  # update port actual port (0 means random)
+####         try:
+####             self.srv.serve_forever()
+####         except KeyboardInterrupt:
+####             self.srv.server_close()  # Prevent ResourceWarning: unclosed socket
+####             raise
+
+
 class WSGIRefServer(ServerAdapter):
     def run(self, app):  # pragma: no cover
         from wsgiref.simple_server import make_server
@@ -3213,6 +3246,9 @@ class WSGIRefServer(ServerAdapter):
 
         handler_cls = self.options.get('handler_class', FixedHandler)
         server_cls = self.options.get('server_class', WSGIServer)
+        key_file = self.options.get('keyfile', None);
+        crt_file = self.options.get('crtfile', None);
+        ssl_version = self.options('ssl_version', ssl.PROTOCOL_SSLv23);
 
         if ':' in self.host:  # Fix wsgiref for IPv6 addresses.
             if getattr(server_cls, 'address_family') == socket.AF_INET:
@@ -3223,6 +3259,12 @@ class WSGIRefServer(ServerAdapter):
         self.srv = make_server(self.host, self.port, app, server_cls,
                                handler_cls)
         self.port = self.srv.server_port  # update port actual port (0 means random)
+
+        if not key_file and not crt_file :
+            import ssl
+            self.ssl_ctx = ssl.SSLContext(ssl_version)
+            self.ssl_ctx.load_cert_chain(crtfile, keyfile=keyfile)
+            srv.socket = self.ssl_ctx.wrap_socket(srv.socket, server_side=True)
         try:
             self.srv.serve_forever()
         except KeyboardInterrupt:
