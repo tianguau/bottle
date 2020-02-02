@@ -580,6 +580,14 @@ class TestResponse(unittest.TestCase):
         self.assertEqual(rs.status_code, 404) # last value
         self.assertEqual(rs.status_line, '404 Brain not Found') # last value
 
+        # Unicode in status line (thanks RFC7230 :/)
+        if bottle.py3k:
+            rs.status = '400 Non-ASÎÎ'
+            self.assertEqual(rs.status, rs.status_line)
+            self.assertEqual(rs.status_code, 400)
+            wire = rs._wsgi_status_line().encode('latin1')
+            self.assertEqual(rs.status, wire.decode('utf8'))
+
     def test_content_type(self):
         rs = BaseResponse()
         rs.content_type = 'test/some'
@@ -752,7 +760,7 @@ class TestResponse(unittest.TestCase):
     def test_expires_header(self):
         import datetime
         response = BaseResponse()
-        now = datetime.datetime.now()
+        now = datetime.datetime.utcnow()
         response.expires = now
 
         def seconds(a, b):
