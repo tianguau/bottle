@@ -3319,11 +3319,11 @@ class WSGIRefServer(ServerAdapter):
                                handler_cls)
         self.port = self.srv.server_port  # update port actual port (0 means random)
 
-        if not key_file and not crt_file :
+        if key_file and crt_file :
             import ssl
-            self.ssl_ctx = ssl.SSLContext(ssl_version)
-            self.ssl_ctx.load_cert_chain(crtfile, keyfile=keyfile)
-            srv.socket = self.ssl_ctx.wrap_socket(srv.socket, server_side=True)
+            ssl_ctx = ssl.SSLContext(ssl_version)
+            ssl_ctx.load_cert_chain(crtfile, keyfile=keyfile)
+            srv.socket = ssl_ctx.wrap_socket(srv.socket, server_side=True)
         try:
             self.srv.serve_forever()
         except KeyboardInterrupt:
